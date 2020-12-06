@@ -264,7 +264,7 @@ class CarlaEnv(object):
     """
     CARLA agent, we will wrap this in a proxy env to get a gym env
     """
-    def __init__(self, render=False, carla_port=2000, record=False, record_dir=None, args=None, record_vision=False, reward_type='lane_follow', **kwargs):
+    def __init__(self, render=False, carla_port=2000, record=False, record_dir=None, args=None, record_vision=False, reward_type='lane_follow', prior_dim=0, **kwargs):
         self.render_display = render
         self.record_display = record
         print('[CarlaEnv] record_vision:', record_vision)
@@ -279,6 +279,7 @@ class CarlaEnv(object):
         self.multiagent = args['multiagent']
         self.start_lane = args['lane']
         self.follow_traffic_lights = args['lights']
+        self.prior_dim = prior_dim
         if self.record_display:
             assert self.render_display
 
@@ -562,7 +563,7 @@ class CarlaEnv(object):
 
     def _is_object_hazard(self, vehicle, object_list):
         """
-        :param vehicle_list: list of potential obstacle to check
+        :param object_list: list of potential obstacle to check
         :return: a tuple given by (bool_flag, vehicle), where
                  - bool_flag is True if there is a vehicle ahead blocking us
                    and False otherwise
@@ -817,6 +818,141 @@ class CarlaEnv(object):
         done_dict['object_collided_done'] = object_collided_done
         done_dict['base_done'] = done
         return total_reward, reward_dict, done_dict
+
+    def _dist_from_center_lane(self, vehicle):
+        # assume on highway
+        vehicle_location = vehicle.get_location()
+        vehicle_waypoint = self.map.get_waypoint(vehicle_location)
+        vehicle_xy = np.array([vehicle_location.x, vehicle_location.y])
+        vehicle_s = vehicle_waypoint.s
+        vehicle_velocity = vehicle.get_velocity()  # Vecor3D
+        vehicle_velocity_xy = np.array([vehicle_velocity.x, vehicle_velocity.y])
+        speed = np.linalg.norm(vehicle_velocity_xy)
+
+        vehicle_waypoint_closest_to_road = \
+            self.map.get_waypoint(vehicle_location, project_to_road=True, lane_type=carla.LaneType.Driving)
+        road_id = vehicle_waypoint_closest_to_road.road_id
+        assert road_id is not None
+        lane_id = int(vehicle_waypoint_closest_to_road.lane_id)
+        goal_lane_id = lane_id
+
+        current_waypoint = self.map.get_waypoint(vehicle_location, project_to_road=False)
+        goal_waypoint = self.map.get_waypoint_xodr(road_id, goal_lane_id, vehicle_s)
+        if goal_waypoint is None:
+            # try to fix, bit of a hack, with CARLA waypoint discretizations
+            carla_waypoint_discretization = 0.02  # meters
+            goal_waypoint = self.map.get_waypoint_xodr(road_id, goal_lane_id, vehicle_s - carla_waypoint_discretization)
+            if goal_waypoint is None:
+                goal_waypoint = self.map.get_waypoint_xodr(road_id, goal_lane_id, vehicle_s + carla_waypoint_discretization)
+
+        if goal_waypoint is None:
+            print("Episode fail: goal waypoint is off the road! (frame %d)" % self.count)
+            done, dist, vel_s = True, 100., 0.
+        else:
+            goal_location = goal_waypoint.transform.location
+            goal_xy = np.array([goal_location.x, goal_location.y])
+            dist = np.linalg.norm(vehicle_xy - goal_xy)
+
+            next_goal_waypoint = goal_waypoint.next(0.1)  # waypoints are ever 0.02 meters
+            if len(next_goal_waypoint) != 1:
+                print('warning: {} waypoints (not 1)'.format(len(next_goal_waypoint)))
+            if len(next_goal_waypoint) == 0:
+                print("Episode done: no more waypoints left. (frame %d)" % self.count)
+                done, vel_s = True, 0.
+            else:
+                location_ahead = next_goal_waypoint[0].transform.location
+                highway_vector = np.array([location_ahead.x, location_ahead.y]) - goal_xy
+                highway_unit_vector = np.array(highway_vector) / np.linalg.norm(highway_vector)
+                vel_s = np.dot(vehicle_velocity_xy, highway_unit_vector)
+                done = False
+
+        # not algorithm's fault, but the simulator sometimes throws the car in the air wierdly
+        if vehicle_velocity.z > 1. and self.count < 20:
+            print("Episode done: vertical velocity too high ({}), usually a simulator glitch (frame {})".format(vehicle_velocity.z, self.count))
+            done = True
+        if vehicle_location.z > 0.5 and self.count < 20:
+            print("Episode done: vertical velocity too high ({}), usually a simulator glitch (frame {})".format(vehicle_location.z, self.count))
+            done = True
+
+        return dist, vel_s, speed, done
+    
+    def _distance_ahead(self, vehicle, object_list):
+        """
+        :param object_list: list of potential obstacle to check
+        :return: a tuple given by (bool_flag, vehicle), where
+                 - bool_flag is True if there is a vehicle ahead blocking us
+                   and False otherwise
+                 - distance of the nearest object ahead
+                 - vehicle is the blocker object itself
+        """
+
+        ego_vehicle_location = vehicle.get_location()
+        ego_vehicle_waypoint = self.map.get_waypoint(ego_vehicle_location)
+
+        obstacle_exists_flag = False
+        obstacle_dist = float('inf')
+        obstacle_object = None
+
+        for target_vehicle in object_list:
+            # do not account for the ego vehicle
+            if target_vehicle.id == vehicle.id:
+                continue
+
+            # if the object is not in our lane it's not an obstacle
+            target_vehicle_waypoint = self.map.get_waypoint(target_vehicle.get_location())
+            if target_vehicle_waypoint.road_id != ego_vehicle_waypoint.road_id or \
+                    target_vehicle_waypoint.lane_id != ego_vehicle_waypoint.lane_id:
+                continue
+
+            target_transform = target_vehicle.get_transform()
+            current_transform = vehicle.get_transform()
+
+            target_vector = np.array([target_transform.location.x - current_transform.location.x, target_transform.location.y - current_transform.location.y])
+            norm_target = np.linalg.norm(target_vector)
+
+            # if target too close, directly return it
+            if norm_target < 0.001:
+                return (True, norm_target, target_vehicle)
+            
+            # if target too far away, skip
+            if norm_target > max_distance:
+                continue
+                
+            fwd = current_transform.get_forward_vector()
+            forward_vector = np.array([fwd.x, fwd.y])
+            # compute the angle of the object
+            d_angle = math.degrees(math.acos(np.clip(np.dot(forward_vector, target_vector) / norm_target, -1., 1.)))
+
+            # if object is not ahead, skip
+            if d_angle >= 90.0:
+                continue
+            
+            obstacle_exists_flag = True
+            if norm_target < obstacle_dist:
+                obstacle_dist = norm_target
+                obstacle_object = target_vehicle
+
+        return (obstacle_exists_flag, obstacle_dist,  obstacle_object)
+    
+    def get_prior(self, action, dist_param=1):
+        dist_from_center, vel_s, speed, done = self._dist_from_center_lane(self.vehicle)
+        object_ahead_flag, dist_to_object_ahead, object_id = self._distance_ahead(vehicle, self.object_list)
+
+        if object_ahead_flag:
+            exp_neg_min_dist = np.exp(-dist_param * dist_to_object_ahead)
+        else:
+            exp_neg_min_dist = 0.0
+        
+        lane_dist = np.exp(-dist_param * dist_from_center)
+        if self.prior_dim == 3:
+            sample_prior = [exp_neg_min_dist, lane_dist, speed]
+        elif self.prior_dim == 2:
+            sample_prior = [exp_neg_min_dist, lane_dist]
+        elif self.prior_dim == 1:
+            sample_prior = exp_neg_min_dist
+        else: 
+            sample_prior = None
+        return sample_prior
     
     def _simulator_step(self, action, traffic_light_color):
         
