@@ -40,6 +40,7 @@ class RCRLReplayBuffer(ReplayBuffer):
         self.priors = np.zeros((self.buffer_size, self.n_envs, self.prior_dim), dtype=np.float32)
 
         if psutil is not None:
+            mem_available = psutil.virtual_memory().available
             total_memory_usage = self.observations.nbytes + self.actions.nbytes + self.rewards.nbytes + self.dones.nbytes + self.priors.nbytes
             if self.next_observations is not None:
                 total_memory_usage += self.next_observations.nbytes
