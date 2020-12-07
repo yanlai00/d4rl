@@ -1006,6 +1006,22 @@ class CarlaEnv(object):
             pygame.image.save(self.render_display, image_name)
             # # Can animate with:
             # ffmpeg -r 20 -pattern_type glob -i 'display*.jpg' carla.mp4
+
+        self.count += 1
+
+        next_obs = rgb 
+        
+        done = False
+        if done:
+            print("Episode success: I've reached the episode horizon ({}).".format(self.max_episode_steps))
+
+        if self.reward_type=='lane_follow':
+            reward, reward_dict, done_dict = self.lane_follow_reward(self.vehicle)
+        elif self.reward_type=='goal_reaching':
+            reward, reward_dict, done_dict = self.goal_reaching_reward(self.vehicle)
+        else:
+            raise ValueError('unknown reward type:', self.reward_type)
+
         if self.record_vision:
             image_name = os.path.join(self.record_dir, "vision%08d.png" % self.count)
             print('savedimg:', image_name)
@@ -1063,7 +1079,7 @@ class CarlaEnv(object):
             metadata.add_text("settings_multiagent", str(self.multiagent))
             # traffic lights
             metadata.add_text("traffic_lights_color", "UNLABELED")
-            # metadata.add_text("reward", str(reward))
+            metadata.add_text("reward", str(reward))
 
             ## Add in reward dict
             for key in reward_dict:
@@ -1078,21 +1094,6 @@ class CarlaEnv(object):
             metadata.add_text('target_location_z', str(self.target_location.z))
 
             im.save(image_name, "PNG", pnginfo=metadata)
-
-        self.count += 1
-
-        next_obs = rgb 
-        
-        done = False
-        if done:
-            print("Episode success: I've reached the episode horizon ({}).".format(self.max_episode_steps))
-
-        if self.reward_type=='lane_follow':
-            reward, reward_dict, done_dict = self.lane_follow_reward(self.vehicle)
-        elif self.reward_type=='goal_reaching':
-            reward, reward_dict, done_dict = self.goal_reaching_reward(self.vehicle)
-        else:
-            raise ValueError('unknown reward type:', self.reward_type)
 
         info = reward_dict
         info.update(done_dict)
