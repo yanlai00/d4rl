@@ -8,7 +8,7 @@ import d4rl
 import json
 import os
 
-env = gym.make("carla-lane-render-v0")
+env = gym.make("carla-lane-render-rcrl-v0")
 exp_name = "RCRL_carla"
 total_timesteps = 1000000
 save_every = 5000

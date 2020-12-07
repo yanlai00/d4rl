@@ -1063,7 +1063,7 @@ class CarlaEnv(object):
             metadata.add_text("settings_multiagent", str(self.multiagent))
             # traffic lights
             metadata.add_text("traffic_lights_color", "UNLABELED")
-            metadata.add_text("reward", str(reward))
+            # metadata.add_text("reward", str(reward))
 
             ## Add in reward dict
             for key in reward_dict:

@@ -51,6 +51,56 @@ register(
     }
 )
 
+register(
+    id='carla-lane-rcrl-v0',
+    entry_point='d4rl.carla:CarlaObsEnv',
+    max_episode_steps=250,
+    kwargs={
+        'ref_min_score': -0.8503839912088142,
+        'ref_max_score': 1023.5784385429523, 
+        'dataset_url': 'http://rail.eecs.berkeley.edu/datasets/offline_rl/carla/carla_lane_follow_flat-v0.hdf5',
+        'reward_type': 'lane_follow',
+        'prior_dim': 2,
+        'carla_args': dict(
+            vision_size=48,
+            vision_fov=48,
+            weather=False,
+            frame_skip=1,
+            steps=250,
+            multiagent=True,
+            lane=0,
+            lights=False,
+            record_dir="None",
+        )
+    }
+)
+
+
+register(
+    id='carla-lane-render-rcrl-v0',
+    entry_point='d4rl.carla:CarlaObsEnv',
+    max_episode_steps=250,
+    kwargs={
+        'ref_min_score': -0.8503839912088142,
+        'ref_max_score': 1023.5784385429523, 
+        'dataset_url': 'http://rail.eecs.berkeley.edu/datasets/offline_rl/carla/carla_lane_follow_flat-v0.hdf5',
+        'reward_type': 'lane_follow',
+        'render_images': True,
+        'prior_dim': 2,
+        'carla_args': dict(
+            vision_size=48,
+            vision_fov=48,
+            weather=False,
+            frame_skip=1,
+            steps=250,
+            multiagent=True,
+            lane=0,
+            lights=False,
+            record_dir="None",
+        )
+    }
+)
+
 
 TOWN_STEPS = 1000
 register(
