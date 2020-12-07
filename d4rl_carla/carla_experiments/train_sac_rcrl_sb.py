@@ -16,7 +16,7 @@ prior_dim = 2
 
 tensorboard_log = os.path.join("./logs", exp_name)
 
-model = RCRLSAC(MlpPolicy, env, verbose=1, buffer_size=10000, tensorboard_log=tensorboard_log)
+model = RCRLSAC(RCRLPolicy, env, verbose=1, buffer_size=10000, tensorboard_log=tensorboard_log)
 model.init_replay_buffer()
 
 reward_log = {}
