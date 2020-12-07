@@ -914,6 +914,7 @@ class CarlaEnv(object):
             if norm_target < 0.001:
                 return (True, norm_target, target_vehicle)
             
+            max_distance = self._proximity_threshold * 3
             # if target too far away, skip
             if norm_target > max_distance:
                 continue
