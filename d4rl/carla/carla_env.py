@@ -936,7 +936,7 @@ class CarlaEnv(object):
     
     def get_prior(self, action, dist_param=1):
         dist_from_center, vel_s, speed, done = self._dist_from_center_lane(self.vehicle)
-        object_ahead_flag, dist_to_object_ahead, object_id = self._distance_ahead(vehicle, self.object_list)
+        object_ahead_flag, dist_to_object_ahead, object_id = self._distance_ahead(self.vehicle, self.object_list)
 
         if object_ahead_flag:
             exp_neg_min_dist = np.exp(-dist_param * dist_to_object_ahead)

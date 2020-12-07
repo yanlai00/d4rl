@@ -7,16 +7,25 @@ import gym
 import d4rl
 import json
 import os
+from stable_baselines3.common.monitor import Monitor
+from stable_baselines3.common.noise import NormalActionNoise
 
 env = gym.make("carla-lane-render-rcrl-v0")
+env = Monitor(env)
 exp_name = "RCRL_carla"
 total_timesteps = 1000000
 save_every = 5000
 prior_dim = 2
+num_steps = 1000
 
 tensorboard_log = os.path.join("./logs", exp_name)
 
-model = RCRLSAC(RCRLPolicy, env, verbose=1, buffer_size=10000, tensorboard_log=tensorboard_log)
+n_actions = env.action_space.shape[0]
+print("n actions: ", n_actions)
+noise_std = 0.3
+action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=noise_std * np.ones(n_actions))
+
+model = RCRLSAC(RCRLPolicy, env, action_noise=action_noise, train_freq=num_steps, gradient_steps=num_steps, verbose=1, buffer_size=10000, tensorboard_log=tensorboard_log)
 model.init_replay_buffer()
 
 reward_log = {}
@@ -27,11 +36,14 @@ for i in range(total_timesteps // save_every):
     obs = env.reset()
     for i in range(3):
         i_reward = 0
-        while not done:
+        steps = 0
+        while not done and steps < num_steps:
             action, _states = model.predict(obs, deterministic=True)
             # Perform action
             obs, reward, done, _ = env.step(action)
+            print(steps, action)
             i_reward += reward 
+            steps += 1
         total_reward.append(i_reward)
     
     reward_log[i] = (np.mean(total_reward), np.std(total_reward))
