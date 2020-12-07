@@ -1116,10 +1116,10 @@ class CarlaEnv(object):
 
 
 class CarlaObsDictEnv(OfflineEnv):
-    def __init__(self, carla_args=None, carla_port=2000, reward_type='lane_follow', render_images=False, **kwargs):
-        self._wrapped_env = CarlaEnv(carla_port=carla_port, args=carla_args, reward_type=reward_type, record_vision=render_images)
+    def __init__(self, carla_args=None, carla_port=2000, reward_type='lane_follow', render_images=False, prior_dim=0, **kwargs):
+        self._wrapped_env = CarlaEnv(carla_port=carla_port, args=carla_args, reward_type=reward_type, record_vision=render_images, prior_dim=prior_dim)
         print('[CarlaObsDictEnv] render_images:', render_images)
-        self._wrapped_env = CarlaEnv(carla_port=carla_port, args=carla_args, record_vision=render_images)
+        self._wrapped_env = CarlaEnv(carla_port=carla_port, args=carla_args, reward_type=reward_type, record_vision=render_images, prior_dim=prior_dim)
         self.action_space = self._wrapped_env.action_space
         self.observation_space = self._wrapped_env.observation_space
 
@@ -1186,8 +1186,8 @@ class CarlaObsDictEnv(OfflineEnv):
 
 
 class CarlaObsEnv(OfflineEnv):
-    def __init__(self, carla_args=None, carla_port=2000, reward_type='lane_follow', render_images=False, **kwargs):
-        self._wrapped_env = CarlaEnv(carla_port=carla_port, args=carla_args, reward_type=reward_type, record_vision=render_images)
+    def __init__(self, carla_args=None, carla_port=2000, reward_type='lane_follow', render_images=False, prior_dim=0, **kwargs):
+        self._wrapped_env = CarlaEnv(carla_port=carla_port, args=carla_args, reward_type=reward_type, record_vision=render_images, prior_dim=prior_dim)
         self.action_space = self._wrapped_env.action_space
         self.observation_space = self._wrapped_env.observation_space
         self.observation_size = int(np.prod(self._wrapped_env.observation_space.shape))
