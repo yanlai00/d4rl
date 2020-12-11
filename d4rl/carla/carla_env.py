@@ -1152,7 +1152,8 @@ class CarlaObsDictEnv(OfflineEnv):
         return next_obs_dict, reward, done, info
 
     def render(self, *args, **kwargs):
-        return self._wrapped_env.render(*args, **kwargs)
+        # return self._wrapped_env.render(*args, **kwargs)
+        pass
 
     @property
     def horizon(self):
@@ -1219,7 +1220,8 @@ class CarlaObsEnv(OfflineEnv):
         return next_obs_dict, reward, done, info
 
     def render(self, *args, **kwargs):
-        return self._wrapped_env.render(*args, **kwargs)
+        # return self._wrapped_env.render(*args, **kwargs)
+        pass
 
     @property
     def horizon(self):
