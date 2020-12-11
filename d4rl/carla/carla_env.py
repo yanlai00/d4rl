@@ -15,9 +15,7 @@ import gym.spaces as spaces
 from d4rl.offline_env import OfflineEnv
 
 try:
-    sys.path.append(glob.glob('../carla/dist/carla-*%d.%d-%s.egg' % (
-        sys.version_info.major,
-        sys.version_info.minor,
+    sys.path.append(glob.glob('~/carla0.9.9/PythonAPI/carla/dist/carla-0.9.9-py3.7-%s.egg' % (
         'win-amd64' if os.name == 'nt' else 'linux-x86_64'))[0])
 except IndexError:
     pass

@@ -8,7 +8,7 @@ import d4rl
 import json
 import os
 
-env = gym.make("carla-lane-v0")
+env = gym.make("carla-lane-render-v0")
 exp_name = "baseline_carla"
 
 model = SAC.load(exp_name)
