@@ -15,7 +15,7 @@ env = gym.make("carla-lane-v0")
 env = Monitor(env)
 exp_name = "RCRL_carla"
 total_timesteps = 1000000
-save_every = 5000
+save_every = 10000
 prior_dim = 2
 num_steps = 1000
 
@@ -31,7 +31,7 @@ model.init_replay_buffer()
 
 reward_log = {}
 for i in range(total_timesteps // save_every):
-    model.learn(total_timesteps=save_every, log_interval=4)
+    model.learn(total_timesteps=save_every, log_interval=4, reset_num_timesteps=False)
     # done = False
     # total_reward = []
     # obs = env.reset()
